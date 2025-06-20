@@ -31,5 +31,3 @@ app.ws('/ws', (ws, req) => {
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`)
 })
-
-​
