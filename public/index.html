@@ -31,6 +31,18 @@
         background: #eee;
         cursor: pointer;
       }
+      .like-button {
+        margin-left: 10px;
+        cursor: pointer;
+        color: red;
+        background: none;
+        border: none;
+        font-size: 1rem;
+      }
+      .like-count {
+        margin-left: 5px;
+        font-weight: bold;
+      }
     </style>
   </head>
   <body>
@@ -56,7 +68,6 @@
 
         const canvas = document.getElementById('canvas')
         const ctx = canvas.getContext('2d')
-
         let drawing = false
 
         canvas.addEventListener('mousedown', (e) => {
@@ -107,11 +118,13 @@
           ws.send(message)
         }
 
+        const likeCounts = {}
+
         ws.onmessage = (event) => {
           const msg = JSON.parse(event.data)
+
           if (msg.type === 'paint') {
             const { x, y, control } = msg
-            console.log({ control })
             if (control === 'mousedown') {
               mousedown()
             } else if (control === 'mouseup') {
@@ -122,16 +135,43 @@
               mouseout()
             }
           }
+
           if (msg.type === 'chat') {
-            const { id, text } = msg
+            const { id, text, messageId } = msg
+            likeCounts[messageId] = 0
             const messageList = document.querySelector('.messages')
             const li = document.createElement('li')
-            if (id === myId) {
-              li.textContent = `(${id})自分:` + text
-            } else {
-              li.textContent = id + ': ' + text
+            const span = document.createElement('span')
+            span.textContent = (id === myId ? `(${id})自分:` : `${id}: `) + text
+
+            const likeButton = document.createElement('button')
+            likeButton.textContent = '❤️'
+            likeButton.className = 'like-button'
+
+            const likeCount = document.createElement('span')
+            likeCount.textContent = '0'
+            likeCount.className = 'like-count'
+            likeCount.dataset.messageId = messageId
+
+            likeButton.onclick = () => {
+              ws.send(JSON.stringify({ type: 'like', messageId }))
             }
+
+            li.appendChild(span)
+            li.appendChild(likeButton)
+            li.appendChild(likeCount)
             messageList.appendChild(li)
+          }
+
+          if (msg.type === 'like') {
+            const { messageId, count } = msg
+            likeCounts[messageId] = count
+            const likeSpans = document.querySelectorAll('.like-count')
+            likeSpans.forEach((span) => {
+              if (span.dataset.messageId === messageId) {
+                span.textContent = count
+              }
+            })
           }
         }
 
@@ -141,7 +181,8 @@
           e.preventDefault()
           const input = document.querySelector('.input')
           const text = input.value
-          ws.send(JSON.stringify({ id: myId, text, type: 'chat' }))
+          const messageId = self.crypto.randomUUID()
+          ws.send(JSON.stringify({ id: myId, text, messageId, type: 'chat' }))
           input.value = ''
           input.focus()
         }
